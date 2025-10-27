@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Index 3 - Página Final</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-orange-50 p-5">
+    <div class="max-w-4xl mx-auto bg-white p-5 rounded-lg shadow-lg">
+      <div class="bg-purple-500 text-white p-4 rounded mb-5 text-center">
+        <h1 class="text-2xl font-bold">Index 3 - Página Final</h1>
+        <p>Esta página pode se comunicar com Index 1 e Index 2</p>
+      </div>
+
+      <div class="my-5 p-4 bg-gray-50 rounded">
+        <h3 class="text-lg font-semibold mb-3">Controles do Index 3</h3>
+        <button
+          onclick="testLocalStorage()"
+          class="bg-purple-500 hover:bg-purple-600 text-white px-5 py-2 rounded mr-2 mb-2"
+        >
+          Testar localStorage
+        </button>
+        <button
+          onclick="sendMessageToIndex1()"
+          class="bg-purple-500 hover:bg-purple-600 text-white px-5 py-2 rounded mr-2 mb-2"
+        >
+          Enviar mensagem para Index 1
+        </button>
+        <button
+          onclick="sendMessageToIndex2()"
+          class="bg-purple-500 hover:bg-purple-600 text-white px-5 py-2 rounded mr-2 mb-2"
+        >
+          Enviar mensagem para Index 2
+        </button>
+        <button
+          onclick="testWindowAccess()"
+          class="bg-indigo-500 hover:bg-indigo-600 text-white px-5 py-2 rounded mr-2 mb-2"
+        >
+          Testar window.parent.parent
+        </button>
+        <button
+          onclick="clearLogs()"
+          class="bg-gray-500 hover:bg-gray-600 text-white px-5 py-2 rounded mr-2 mb-2"
+        >
+          Limpar Logs
+        </button>
+        <button
+          onclick="toggleMessageListener()"
+          class="bg-red-500 hover:bg-red-600 text-white px-5 py-2 rounded mr-2 mb-2"
+          id="toggleBtn"
+        >
+          Parar Mensagens
+        </button>
+      </div>
+
+      <div
+        id="status"
+        class="p-3 mb-5 rounded font-bold bg-green-100 text-green-800"
+      >
+        Index 3 carregado - Pronto para comunicação
+      </div>
+
+      <div
+        id="log"
+        class="bg-gray-50 border border-gray-300 p-3 my-3 rounded max-h-48 overflow-y-auto font-mono text-xs"
+      >
+        <strong>Log de Comunicação:</strong><br />
+      </div>
+    </div>
+
+    <script>
+      let parentWindow = null;
+      let grandParentWindow = null;
+      let messageListenerActive = true;
+
+      // Obter referências das janelas pai
+      if (window.parent && window.parent !== window) {
+        parentWindow = window.parent; // Index 2
+        logMessage("Referência da janela pai (Index 2) obtida");
+
+        // Tentar obter referência da janela avô (Index 1)
+        if (parentWindow.parent && parentWindow.parent !== parentWindow) {
+          grandParentWindow = parentWindow.parent;
+          logMessage("Referência da janela avô (Index 1) obtida");
+        }
+      }
+
+      // Listener para mensagens das janelas pai
+      window.addEventListener("message", function (event) {
+        // Verificar se o listener está ativo
+        if (!messageListenerActive) {
+          return;
+        }
+
+        // Filtrar mensagens do navegador/extensões
+        if (isBrowserMessage(event.data)) {
+          return; // Ignorar mensagens do navegador
+        }
+
+        const timestamp = new Date().toLocaleTimeString();
+        logMessage(
+          `[${timestamp}] 📨 Mensagem recebida de: ${event.origin || "unknown"}`
+        );
+        logMessage(
+          `[${timestamp}] 📄 Dados: ${JSON.stringify(event.data, null, 2)}`
+        );
+      });
+
+      // Função para identificar mensagens do navegador/extensões
+      function isBrowserMessage(data) {
+        if (!data || typeof data !== "object") return false;
+
+        // React DevTools
+        if (data.source === "react-devtools-content-script") return true;
+
+        // Chrome Extensions
+        if (data.source === "chrome-extension") return true;
+
+        // Firefox Extensions
+        if (data.source === "moz-extension") return true;
+
+        // Outras extensões comuns
+        if (data.source && data.source.includes("extension")) return true;
+
+        // Mensagens de debug do navegador
+        if (data.type === "debug" || data.type === "devtools") return true;
+
+        return false;
+      }
+
+      function testLocalStorage() {
+        const testData = {
+          timestamp: new Date().toISOString(),
+          source: "Index 3",
+          data: "Dados de teste do Index 3",
+        };
+        localStorage.setItem("testData", JSON.stringify(testData));
+        logMessage("Dados salvos no localStorage do Index 3");
+        updateStatus("Dados salvos no localStorage!", "success");
+      }
+
+      function sendMessageToIndex1() {
+        if (grandParentWindow) {
+          const message = {
+            type: "text",
+            data: "Mensagem do Index 3 para Index 1",
+          };
+          grandParentWindow.postMessage(message, "*");
+          logMessage("Mensagem enviada para Index 1");
+        } else {
+          logMessage("Erro: Janela avô (Index 1) não está disponível");
+          updateStatus("Erro: Janela avô não está disponível", "error");
+        }
+      }
+
+      function sendMessageToIndex2() {
+        if (parentWindow) {
+          const message = {
+            type: "text",
+            data: "Mensagem do Index 3 para Index 2",
+          };
+          parentWindow.postMessage(message, "*");
+          logMessage("Mensagem enviada para Index 2");
+        } else {
+          logMessage("Erro: Janela pai (Index 2) não está disponível");
+          updateStatus("Erro: Janela pai não está disponível", "error");
+        }
+      }
+
+      function testWindowAccess() {
+        const timestamp = new Date().toLocaleTimeString();
+        logMessage(
+          `[${timestamp}] 🔍 Testando acesso a window.parent.parent...`
+        );
+
+        // Testar acesso ao Index 1 (window.parent.parent)
+        if (grandParentWindow) {
+          try {
+            logMessage(`[${timestamp}] ✅ Acesso ao Index 1 disponível`);
+
+            // Testar diferentes funções do Index 1
+            if (grandParentWindow.minhaFuncao) {
+              const resultado1 =
+                grandParentWindow.minhaFuncao("Teste do Index 3");
+              logMessage(`[${timestamp}] 🎯 minhaFuncao: ${resultado1}`);
+            }
+
+            if (grandParentWindow.calcularSoma) {
+              const resultado2 = grandParentWindow.calcularSoma(100, 200);
+              logMessage(`[${timestamp}] 🧮 calcularSoma: ${resultado2}`);
+            }
+
+            if (grandParentWindow.obterDados) {
+              const dados = grandParentWindow.obterDados();
+              logMessage(
+                `[${timestamp}] 📊 obterDados: ${JSON.stringify(dados)}`
+              );
+            }
+
+            updateStatus("Acesso ao Index 1 bem-sucedido!", "success");
+          } catch (e) {
+            logMessage(
+              `[${timestamp}] ❌ Erro ao acessar Index 1: ${e.message}`
+            );
+            updateStatus("Erro ao acessar Index 1", "error");
+          }
+        } else {
+          logMessage(`[${timestamp}] ❌ Acesso ao Index 1 não disponível`);
+          updateStatus("Acesso ao Index 1 não disponível", "error");
+        }
+
+        // Testar acesso ao Index 2 (window.parent)
+        if (parentWindow) {
+          try {
+            logMessage(`[${timestamp}] ✅ Acesso ao Index 2 disponível`);
+
+            if (parentWindow.testFunction) {
+              const resultado = parentWindow.testFunction("Index 3");
+              logMessage(`[${timestamp}] ⚡ testFunction: ${resultado}`);
+            }
+
+            updateStatus("Acesso ao Index 2 também bem-sucedido!", "success");
+          } catch (e) {
+            logMessage(
+              `[${timestamp}] ❌ Erro ao acessar Index 2: ${e.message}`
+            );
+            updateStatus("Erro ao acessar Index 2", "error");
+          }
+        } else {
+          logMessage(`[${timestamp}] ❌ Acesso ao Index 2 não disponível`);
+          updateStatus("Acesso ao Index 2 não disponível", "error");
+        }
+      }
+
+      function updateStatus(message, type) {
+        const statusDiv = document.getElementById("status");
+        statusDiv.textContent = message;
+        if (type === "success") {
+          statusDiv.className =
+            "p-3 mb-5 rounded font-bold bg-green-100 text-green-800";
+        } else if (type === "error") {
+          statusDiv.className =
+            "p-3 mb-5 rounded font-bold bg-red-100 text-red-800";
+        } else if (type === "info") {
+          statusDiv.className =
+            "p-3 mb-5 rounded font-bold bg-blue-100 text-blue-800";
+        } else {
+          statusDiv.className =
+            "p-3 mb-5 rounded font-bold bg-yellow-100 text-yellow-800";
+        }
+      }
+
+      function logMessage(message) {
+        const logDiv = document.getElementById("log");
+        const timestamp = new Date().toLocaleTimeString();
+        logDiv.innerHTML += `[${timestamp}] ${message}<br>`;
+        logDiv.scrollTop = logDiv.scrollHeight;
+      }
+
+      function clearLogs() {
+        document.getElementById("log").innerHTML =
+          "<strong>Log de Comunicação:</strong><br>";
+      }
+
+      function toggleMessageListener() {
+        messageListenerActive = !messageListenerActive;
+        const toggleBtn = document.getElementById("toggleBtn");
+        const timestamp = new Date().toLocaleTimeString();
+
+        if (messageListenerActive) {
+          toggleBtn.textContent = "Parar Mensagens";
+          toggleBtn.className =
+            "bg-red-500 hover:bg-red-600 text-white px-5 py-2 rounded mr-2 mb-2";
+          logMessage(`[${timestamp}] 🔄 Listener de mensagens ATIVADO`);
+          updateStatus("Listener de mensagens ativado", "success");
+        } else {
+          toggleBtn.textContent = "Iniciar Mensagens";
+          toggleBtn.className =
+            "bg-green-500 hover:bg-green-600 text-white px-5 py-2 rounded mr-2 mb-2";
+          logMessage(`[${timestamp}] ⏸️ Listener de mensagens PAUSADO`);
+          updateStatus("Listener de mensagens pausado", "error");
+        }
+      }
+
+      // Inicializar teste de localStorage
+      window.onload = function () {
+        logMessage("Index 3 carregado");
+      };
+    </script>
+  </body>
+</html>

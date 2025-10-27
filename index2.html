@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Index 2 - Página Intermediária</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-green-50 p-5">
+    <div class="max-w-5xl mx-auto bg-white p-5 rounded-lg shadow-lg">
+      <div class="bg-orange-500 text-white p-4 rounded mb-5 text-center">
+        <h1 class="text-2xl font-bold">Index 2 - Página Intermediária</h1>
+        <p>
+          Esta página contém o iframe do Index 3 e pode se comunicar com Index 1
+        </p>
+      </div>
+
+      <div class="my-5 p-4 bg-gray-50 rounded">
+        <h3 class="text-lg font-semibold mb-3">Controles do Index 2</h3>
+        <button
+          onclick="testLocalStorage()"
+          class="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded mr-2 mb-2"
+        >
+          Testar localStorage
+        </button>
+        <button
+          onclick="sendMessageToIndex1()"
+          class="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded mr-2 mb-2"
+        >
+          Enviar mensagem para Index 1
+        </button>
+        <button
+          onclick="sendMessageToIndex3()"
+          class="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded mr-2 mb-2"
+        >
+          Enviar mensagem para Index 3
+        </button>
+        <button
+          onclick="testWindowFunctions()"
+          class="bg-blue-500 hover:bg-blue-600 text-white px-5 py-2 rounded mr-2 mb-2"
+        >
+          Testar window.parent.minhaFuncao
+        </button>
+        <button
+          onclick="testWindowCalculations()"
+          class="bg-purple-500 hover:bg-purple-600 text-white px-5 py-2 rounded mr-2 mb-2"
+        >
+          Testar window.parent.calcularSoma
+        </button>
+        <button
+          onclick="clearLogs()"
+          class="bg-gray-500 hover:bg-gray-600 text-white px-5 py-2 rounded mr-2 mb-2"
+        >
+          Limpar Logs
+        </button>
+        <button
+          onclick="toggleMessageListener()"
+          class="bg-red-500 hover:bg-red-600 text-white px-5 py-2 rounded mr-2 mb-2"
+          id="toggleBtn"
+        >
+          Parar Mensagens
+        </button>
+      </div>
+
+      <div
+        id="status"
+        class="p-3 mb-5 rounded font-bold bg-yellow-100 text-yellow-800"
+      >
+        Aguardando conexão com Index 3...
+      </div>
+
+      <div
+        id="log"
+        class="bg-gray-50 border border-gray-300 p-3 my-3 rounded max-h-48 overflow-y-auto font-mono text-xs"
+      >
+        <strong>Log de Comunicação:</strong><br />
+      </div>
+
+      <div class="border-2 border-gray-300 rounded my-5 overflow-hidden">
+        <h3 class="p-2 bg-gray-100 font-semibold">Iframe do Index 3:</h3>
+        <iframe
+          id="index3Frame"
+          src="http://127.0.0.1:5500/index3.html"
+          class="w-full h-[800px] border-0"
+        ></iframe>
+      </div>
+    </div>
+
+    <script>
+      let index3Frame = null;
+      let parentWindow = null;
+      let messageListenerActive = true;
+
+      // Aguardar o carregamento do iframe
+      document.getElementById("index3Frame").onload = function () {
+        index3Frame = this.contentWindow;
+        updateStatus("Index 3 carregado com sucesso!", "success");
+        logMessage("Index 3 iframe carregado");
+      };
+
+      // Obter referência da janela pai (Index 1)
+      if (window.parent && window.parent !== window) {
+        parentWindow = window.parent;
+        logMessage("Referência da janela pai (Index 1) obtida");
+      }
+
+      // Listener para mensagens dos iframes e da janela pai
+      window.addEventListener("message", function (event) {
+        // Verificar se o listener está ativo
+        if (!messageListenerActive) {
+          return;
+        }
+
+        // Filtrar mensagens do navegador/extensões
+        if (isBrowserMessage(event.data)) {
+          return; // Ignorar mensagens do navegador
+        }
+
+        const timestamp = new Date().toLocaleTimeString();
+        logMessage(
+          `[${timestamp}] 📨 Mensagem recebida de: ${event.origin || "unknown"}`
+        );
+        logMessage(
+          `[${timestamp}] 📄 Dados: ${JSON.stringify(event.data, null, 2)}`
+        );
+      });
+
+      // Função para identificar mensagens do navegador/extensões
+      function isBrowserMessage(data) {
+        if (!data || typeof data !== "object") return false;
+
+        // React DevTools
+        if (data.source === "react-devtools-content-script") return true;
+
+        // Chrome Extensions
+        if (data.source === "chrome-extension") return true;
+
+        // Firefox Extensions
+        if (data.source === "moz-extension") return true;
+
+        // Outras extensões comuns
+        if (data.source && data.source.includes("extension")) return true;
+
+        // Mensagens de debug do navegador
+        if (data.type === "debug" || data.type === "devtools") return true;
+
+        return false;
+      }
+
+      function testLocalStorage() {
+        const testData = {
+          timestamp: new Date().toISOString(),
+          source: "Index 2",
+          data: "Dados de teste do Index 2",
+        };
+        localStorage.setItem("testData", JSON.stringify(testData));
+        logMessage("Dados salvos no localStorage do Index 2");
+        updateStatus("Dados salvos no localStorage!", "success");
+      }
+
+      function sendMessageToIndex1() {
+        if (parentWindow) {
+          const message = {
+            type: "text",
+            data: "Mensagem do Index 2 para Index 1",
+          };
+          parentWindow.postMessage(message, "*");
+          logMessage("Mensagem enviada para Index 1");
+        } else {
+          logMessage("Erro: Janela pai (Index 1) não está disponível");
+          updateStatus("Erro: Janela pai não está disponível", "error");
+        }
+      }
+
+      function sendMessageToIndex3() {
+        if (index3Frame) {
+          const message = {
+            type: "text",
+            functionName: "testFunction",
+            data: "Mensagem do Index 2 para Index 3",
+          };
+          index3Frame.postMessage(message, "*");
+          logMessage("Mensagem enviada para Index 3");
+        } else {
+          logMessage("Erro: Index 3 não está carregado");
+          updateStatus("Erro: Index 3 não está carregado", "error");
+        }
+      }
+
+      function testWindowFunctions() {
+        if (parentWindow) {
+          try {
+            const timestamp = new Date().toLocaleTimeString();
+            logMessage(`[${timestamp}] 🎯 Testando window.minhaFuncao...`);
+
+            if (parentWindow.minhaFuncao) {
+              const resultado = parentWindow.minhaFuncao("Teste do Index 2");
+              logMessage(`[${timestamp}] ✅ Resultado: ${resultado}`);
+              updateStatus(
+                "window.minhaFuncao executada com sucesso!",
+                "success"
+              );
+            } else {
+              logMessage(`[${timestamp}] ❌ window.minhaFuncao não encontrada`);
+              updateStatus("window.minhaFuncao não encontrada", "error");
+            }
+          } catch (e) {
+            const timestamp = new Date().toLocaleTimeString();
+            logMessage(`[${timestamp}] ❌ Erro: ${e.message}`);
+            updateStatus("Erro ao chamar window.minhaFuncao", "error");
+          }
+        } else {
+          const timestamp = new Date().toLocaleTimeString();
+          logMessage(`[${timestamp}] ❌ Janela pai não disponível`);
+          updateStatus("Janela pai não disponível", "error");
+        }
+      }
+
+      function testWindowCalculations() {
+        if (parentWindow) {
+          try {
+            const timestamp = new Date().toLocaleTimeString();
+            logMessage(`[${timestamp}] 🧮 Testando window.calcularSoma...`);
+
+            if (parentWindow.calcularSoma) {
+              const resultado = parentWindow.calcularSoma(15, 25);
+              logMessage(`[${timestamp}] ✅ Resultado da soma: ${resultado}`);
+              updateStatus(`Soma calculada: 15 + 25 = ${resultado}`, "success");
+            } else {
+              logMessage(
+                `[${timestamp}] ❌ window.calcularSoma não encontrada`
+              );
+              updateStatus("window.calcularSoma não encontrada", "error");
+            }
+          } catch (e) {
+            const timestamp = new Date().toLocaleTimeString();
+            logMessage(`[${timestamp}] ❌ Erro: ${e.message}`);
+            updateStatus("Erro ao chamar window.calcularSoma", "error");
+          }
+        } else {
+          const timestamp = new Date().toLocaleTimeString();
+          logMessage(`[${timestamp}] ❌ Janela pai não disponível`);
+          updateStatus("Janela pai não disponível", "error");
+        }
+      }
+
+      function updateStatus(message, type) {
+        const statusDiv = document.getElementById("status");
+        statusDiv.textContent = message;
+        if (type === "success") {
+          statusDiv.className =
+            "p-3 mb-5 rounded font-bold bg-green-100 text-green-800";
+        } else if (type === "error") {
+          statusDiv.className =
+            "p-3 mb-5 rounded font-bold bg-red-100 text-red-800";
+        } else {
+          statusDiv.className =
+            "p-3 mb-5 rounded font-bold bg-yellow-100 text-yellow-800";
+        }
+      }
+
+      function logMessage(message) {
+        const logDiv = document.getElementById("log");
+        const timestamp = new Date().toLocaleTimeString();
+        logDiv.innerHTML += `[${timestamp}] ${message}<br>`;
+        logDiv.scrollTop = logDiv.scrollHeight;
+      }
+
+      function clearLogs() {
+        document.getElementById("log").innerHTML =
+          "<strong>Log de Comunicação:</strong><br>";
+      }
+
+      function toggleMessageListener() {
+        messageListenerActive = !messageListenerActive;
+        const toggleBtn = document.getElementById("toggleBtn");
+        const timestamp = new Date().toLocaleTimeString();
+
+        if (messageListenerActive) {
+          toggleBtn.textContent = "Parar Mensagens";
+          toggleBtn.className =
+            "bg-red-500 hover:bg-red-600 text-white px-5 py-2 rounded mr-2 mb-2";
+          logMessage(`[${timestamp}] 🔄 Listener de mensagens ATIVADO`);
+          updateStatus("Listener de mensagens ativado", "success");
+        } else {
+          toggleBtn.textContent = "Iniciar Mensagens";
+          toggleBtn.className =
+            "bg-green-500 hover:bg-green-600 text-white px-5 py-2 rounded mr-2 mb-2";
+          logMessage(`[${timestamp}] ⏸️ Listener de mensagens PAUSADO`);
+          updateStatus("Listener de mensagens pausado", "error");
+        }
+      }
+
+      // Função global para ser chamada pelos iframes
+      window.testFunction = function (source) {
+        logMessage(`Função testFunction chamada por: ${source}`);
+        updateStatus(
+          `Função executada com sucesso! Chamada por: ${source}`,
+          "success"
+        );
+        return "Função executada no Index 2";
+      };
+
+      // Inicializar teste de localStorage
+      window.onload = function () {
+        logMessage("Index 2 carregado");
+      };
+    </script>
+  </body>
+</html>

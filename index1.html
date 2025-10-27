@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Index 1 - Página Principal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-gray-100 p-5">
+    <div class="max-w-6xl mx-auto bg-white p-5 rounded-lg shadow-lg">
+      <div class="bg-green-500 text-white p-4 rounded mb-5 text-center">
+        <h1 class="text-2xl font-bold">Index 1 - Página Principal</h1>
+        <p>Esta página contém o iframe do Index 2</p>
+      </div>
+
+      <div class="my-5 p-4 bg-gray-50 rounded">
+        <h3 class="text-lg font-semibold mb-3">Controles do Index 1</h3>
+        <button
+          onclick="testLocalStorage()"
+          class="bg-blue-500 hover:bg-blue-600 text-white px-5 py-2 rounded mr-2 mb-2"
+        >
+          Testar localStorage
+        </button>
+        <button
+          onclick="sendMessageToIndex2()"
+          class="bg-blue-500 hover:bg-blue-600 text-white px-5 py-2 rounded mr-2 mb-2"
+        >
+          Enviar mensagem para Index 2
+        </button>
+        <button
+          onclick="sendMessageToIndex3()"
+          class="bg-blue-500 hover:bg-blue-600 text-white px-5 py-2 rounded mr-2 mb-2"
+        >
+          Enviar mensagem para Index 3
+        </button>
+        <button
+          onclick="clearLogs()"
+          class="bg-gray-500 hover:bg-gray-600 text-white px-5 py-2 rounded mr-2 mb-2"
+        >
+          Limpar Logs
+        </button>
+        <button
+          onclick="toggleMessageListener()"
+          class="bg-red-500 hover:bg-red-600 text-white px-5 py-2 rounded mr-2 mb-2"
+          id="toggleBtn"
+        >
+          Parar Mensagens
+        </button>
+      </div>
+
+      <div
+        id="status"
+        class="p-3 mb-5 rounded font-bold bg-yellow-100 text-yellow-800"
+      >
+        Aguardando conexão com Index 2...
+      </div>
+
+      <div
+        id="log"
+        class="bg-gray-50 border border-gray-300 p-3 my-3 rounded max-h-48 overflow-y-auto font-mono text-xs"
+      >
+        <strong>Log de Comunicação:</strong><br />
+      </div>
+
+      <div class="border-2 border-gray-300 rounded my-5 overflow-hidden">
+        <h3 class="p-2 bg-gray-100 font-semibold">Iframe do Index 2:</h3>
+        <iframe
+          id="index2Frame"
+          src="http://127.0.0.1:5500/index2.html"
+          class="w-full h-[800px] border-0"
+        ></iframe>
+      </div>
+    </div>
+
+    <script>
+      let index2Frame = null;
+      let index3Frame = null;
+      let messageListenerActive = true;
+
+      // Aguardar o carregamento do iframe
+      document.getElementById("index2Frame").onload = function () {
+        index2Frame = this.contentWindow;
+        updateStatus("Index 2 carregado com sucesso!", "success");
+        logMessage("Index 2 iframe carregado");
+
+        // Tentar obter referência do Index 3 através do Index 2
+        setTimeout(() => {
+          try {
+            if (index2Frame && index2Frame.document) {
+              const index3Iframe =
+                index2Frame.document.getElementById("index3Frame");
+              if (index3Iframe) {
+                index3Frame = index3Iframe.contentWindow;
+                logMessage("Referência do Index 3 obtida através do Index 2");
+              }
+            }
+          } catch (e) {
+            logMessage("Erro ao obter referência do Index 3: " + e.message);
+          }
+        }, 1000);
+      };
+
+      // Listener para mensagens dos iframes com proteção contra spam
+      window.addEventListener("message", function (event) {
+        // Verificar se o listener está ativo
+        if (!messageListenerActive) {
+          return;
+        }
+
+        // Filtrar mensagens do navegador/extensões
+        if (isBrowserMessage(event.data)) {
+          return; // Ignorar mensagens do navegador
+        }
+
+        const timestamp = new Date().toLocaleTimeString();
+        logMessage(
+          `[${timestamp}] 📨 Mensagem recebida de: ${event.origin || "unknown"}`
+        );
+        logMessage(
+          `[${timestamp}] 📄 Dados: ${JSON.stringify(event.data, null, 2)}`
+        );
+      });
+
+      // Função para identificar mensagens do navegador/extensões
+      function isBrowserMessage(data) {
+        if (!data || typeof data !== "object") return false;
+
+        // React DevTools
+        if (data.source === "react-devtools-content-script") return true;
+
+        // Chrome Extensions
+        if (data.source === "chrome-extension") return true;
+
+        // Firefox Extensions
+        if (data.source === "moz-extension") return true;
+
+        // Outras extensões comuns
+        if (data.source && data.source.includes("extension")) return true;
+
+        // Mensagens de debug do navegador
+        if (data.type === "debug" || data.type === "devtools") return true;
+
+        return false;
+      }
+
+      function testLocalStorage() {
+        const testData = {
+          timestamp: new Date().toISOString(),
+          source: "Index 1",
+          data: "Dados de teste do Index 1",
+        };
+        localStorage.setItem("testData", JSON.stringify(testData));
+        const timestamp = new Date().toLocaleTimeString();
+        logMessage(`[${timestamp}] 💾 Dados salvos no localStorage do Index 1`);
+        updateStatus("Dados salvos no localStorage!", "success");
+      }
+
+      function sendMessageToIndex2() {
+        if (index2Frame) {
+          const message = {
+            type: "text",
+            data: "Mensagem do Index 1 para Index 2",
+          };
+          index2Frame.postMessage(message, "*");
+          const timestamp = new Date().toLocaleTimeString();
+          logMessage(`[${timestamp}] 📤 Mensagem enviada para Index 2`);
+        } else {
+          const timestamp = new Date().toLocaleTimeString();
+          logMessage(`[${timestamp}] ❌ Erro: Index 2 não está carregado`);
+          updateStatus("Erro: Index 2 não está carregado", "error");
+        }
+      }
+
+      function sendMessageToIndex3() {
+        if (index3Frame) {
+          const message = {
+            type: "text",
+            data: "Mensagem do Index 1 para Index 3",
+          };
+          index3Frame.postMessage(message, "*");
+          const timestamp = new Date().toLocaleTimeString();
+          logMessage(`[${timestamp}] 📤 Mensagem enviada para Index 3`);
+        } else {
+          const timestamp = new Date().toLocaleTimeString();
+          logMessage(`[${timestamp}] ❌ Erro: Index 3 não está carregado`);
+          updateStatus("Erro: Index 3 não está carregado", "error");
+        }
+      }
+
+      function updateStatus(message, type) {
+        const statusDiv = document.getElementById("status");
+        statusDiv.textContent = message;
+        if (type === "success") {
+          statusDiv.className =
+            "p-3 mb-5 rounded font-bold bg-green-100 text-green-800";
+        } else if (type === "error") {
+          statusDiv.className =
+            "p-3 mb-5 rounded font-bold bg-red-100 text-red-800";
+        } else {
+          statusDiv.className =
+            "p-3 mb-5 rounded font-bold bg-yellow-100 text-yellow-800";
+        }
+      }
+
+      function logMessage(message) {
+        const logDiv = document.getElementById("log");
+        logDiv.innerHTML += `${message}<br>`;
+        logDiv.scrollTop = logDiv.scrollHeight;
+      }
+
+      function clearLogs() {
+        document.getElementById("log").innerHTML =
+          "<strong>Log de Comunicação:</strong><br>";
+      }
+
+      function toggleMessageListener() {
+        messageListenerActive = !messageListenerActive;
+        const toggleBtn = document.getElementById("toggleBtn");
+        const timestamp = new Date().toLocaleTimeString();
+
+        if (messageListenerActive) {
+          toggleBtn.textContent = "Parar Mensagens";
+          toggleBtn.className =
+            "bg-red-500 hover:bg-red-600 text-white px-5 py-2 rounded mr-2 mb-2";
+          logMessage(`[${timestamp}] 🔄 Listener de mensagens ATIVADO`);
+          updateStatus("Listener de mensagens ativado", "success");
+        } else {
+          toggleBtn.textContent = "Iniciar Mensagens";
+          toggleBtn.className =
+            "bg-green-500 hover:bg-green-600 text-white px-5 py-2 rounded mr-2 mb-2";
+          logMessage(`[${timestamp}] ⏸️ Listener de mensagens PAUSADO`);
+          updateStatus("Listener de mensagens pausado", "error");
+        }
+      }
+
+      // ===== FUNÇÕES PRINCIPAIS DO INDEX 1 =====
+      // Estas funções ficam no Index 1 e são acessadas pelos níveis inferiores
+
+      window.minhaFuncao = function (parametro) {
+        const timestamp = new Date().toLocaleTimeString();
+        logMessage(
+          `[${timestamp}] 🎯 minhaFuncao EXECUTADA no Index 1 com parâmetro: ${parametro}`
+        );
+        updateStatus(
+          `✅ minhaFuncao executada! Parâmetro: ${parametro}`,
+          "success"
+        );
+        return `Resultado da minhaFuncao: ${parametro}`;
+      };
+
+      window.calcularSoma = function (a, b) {
+        const resultado = a + b;
+        const timestamp = new Date().toLocaleTimeString();
+        logMessage(
+          `[${timestamp}] 🧮 calcularSoma EXECUTADA no Index 1: ${a} + ${b} = ${resultado}`
+        );
+        updateStatus(
+          `✅ Soma calculada: ${a} + ${b} = ${resultado}`,
+          "success"
+        );
+        return resultado;
+      };
+
+      // Inicializar teste de localStorage
+      window.onload = function () {
+        const timestamp = new Date().toLocaleTimeString();
+        logMessage(`[${timestamp}] 🚀 Index 1 carregado`);
+      };
+    </script>
+  </body>
+</html>
