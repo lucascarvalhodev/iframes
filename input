@@ -1,0 +1,70 @@
+import { useState, useEffect } from "react";
+import { FormControl, FormLabel, FormMessage, FormItem } from "../ui/form";
+import { Input } from "../ui/input";
+
+interface Props {
+  label: string;
+  field: any; // React Hook Form field
+  maxValue?: number;
+  disabled?: boolean;
+}
+
+export function InputMoneyRHF({ label, field, maxValue, disabled = false }: Props) {
+  // raw centavos como string de dígitos (ex: "1" -> 1 centavo, "11" -> 11 centavos)
+  const [raw, setRaw] = useState<string>("");
+
+  // Formata centavos para BRL, ex: 1234 -> "12,34"
+  const formatBRL = (cents: number) =>
+    (cents / 100).toLocaleString("pt-BR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+
+  // Sincroniza raw sempre que field.value mudar
+  useEffect(() => {
+    if (typeof field.value === "number" && !isNaN(field.value)) {
+      setRaw(field.value.toString());
+    } else {
+      setRaw("");
+    }
+  }, [field.value]);
+
+  // Value exibido sempre formatado a partir de raw
+  const displayValue = raw ? formatBRL(parseInt(raw, 10) || 0) : "";
+
+  return (
+    <FormItem>
+      <FormLabel>{label}</FormLabel>
+      <div className="relative">
+        <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">
+          R$
+        </span>
+        <FormControl>
+          <Input
+            inputMode="numeric"
+            placeholder="0,00"
+            className="pl-10"
+            value={displayValue}
+            disabled={disabled}
+            onChange={(e) => {
+              if (disabled) return;
+              // Remove tudo que não for dígito
+              let digits = e.target.value.replace(/\D/g, "");
+
+              if (maxValue && Number(digits) > maxValue) {
+                digits = String(maxValue);
+              }
+
+              // Atualiza raw centavos
+              setRaw(digits);
+              // Converte para número inteiro (centavos) e envia ao RHF
+              const cents = parseInt(digits, 10) || 0;
+              field.onChange(cents);
+            }}
+          />
+        </FormControl>
+      </div>
+      <FormMessage />
+    </FormItem>
+  );
+}
